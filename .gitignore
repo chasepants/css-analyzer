@@ -37,6 +37,7 @@ Thumbs.db       # Windows
 css_usage.csv   # Default output file (unless you want to track specific outputs)
 *.csv           # Uncomment if you want to ignore all CSV outputs
 output.csv 
+
 # Dependency lock files (if you use them)
 Pipfile.lock
 poetry.lock

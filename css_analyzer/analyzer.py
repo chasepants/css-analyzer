@@ -95,16 +95,16 @@ class CSSAnalyzer:
             print(f"Error analyzing {file_path}: {e}")
 
     def generate_csv(self, output_file: str) -> None:
-        """Generate CSV report with one row per usage, including unused elements."""
+        """Generate CSV report with one row per usage, including unused elements and Used? column."""
         with open(output_file, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
-            writer.writerow(['CSS Element', 'Defined In', 'File', 'Line Number', 'Line of Code'])
+            writer.writerow(['CSS Element', 'Defined In', 'Used?', 'File', 'Line Number', 'Line of Code'])
             # Write all defined elements, even if unused
             for element in sorted(self.css_definitions.keys()):
                 defined_in = self.css_definitions[element]
                 usages = [u for u in self.css_usage if u[0] == element]
                 if usages:
                     for _, file_path, line_num, line in usages:
-                        writer.writerow([element, defined_in, file_path, line_num, line])
+                        writer.writerow([element, defined_in, 'YES', file_path, line_num, line])
                 else:
-                    writer.writerow([element, defined_in, '', '', ''])  # Empty usage
+                    writer.writerow([element, defined_in, 'NO', '', '', ''])  # Empty usage
