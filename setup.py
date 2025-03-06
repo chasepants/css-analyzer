@@ -11,9 +11,7 @@ setup(
     name='css-analyzer',
     version='0.1.0',
     packages=find_packages(),
-    install_requires=[
-        'beautifulsoup4>=4.12.0',  # Removed phply
-    ],
+    install_requires=[],
     entry_points={
         'console_scripts': [
             'css-analyzer=css_analyzer.cli:main',
