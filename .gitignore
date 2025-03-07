@@ -41,7 +41,3 @@ output.csv
 # Dependency lock files (if you use them)
 Pipfile.lock
 poetry.lock
-
-# example files
-src/
-styles.css

@@ -157,3 +157,19 @@ def test_css_analyzer(tmp_path, css_content, html_content, php_content):
     assert '[data-type="button"]' in used_selectors
     assert any(row['CSS Element'] == ".unused" and row['Used?'] == 'NO' for row in rows)
     assert any(row['CSS Element'] == ".btn:hover" and row['Used?'] == 'UNKNOWN' for row in rows)
+
+def test_combinator_detection(tmp_path):
+    """Test combinator detection across multiple lines."""
+    html_file = tmp_path / "test.html"
+    html_file.write_text(
+        '<div class="container">\n'
+        '    <header class="header">\n'
+    )
+    css_file = tmp_path / "test.css"
+    css_file.write_text('.container .header { color: blue; }\n')
+
+    analyzer = CSSAnalyzer(str(css_file), tmp_path)
+    analyzer.parse_css()
+    analyzer.find_usages()
+    
+    assert any(selector == '.container .header' for selector, _, _, _ in analyzer.usages)

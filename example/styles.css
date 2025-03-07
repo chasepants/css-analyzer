@@ -1,0 +1,33 @@
+/* styles.css */
+
+/* Classes */
+.container { width: 80%; margin: 0 auto; }
+.header { background-color: #333; color: white; padding: 10px; }
+.btn-primary { background-color: blue; color: white; padding: 8px 16px; }
+.btn-secondary { background-color: gray; color: white; padding: 8px 16px; }
+.footer-unused { background-color: #000; color: #fff; }
+.nav-item { display: inline-block; margin-right: 10px; }
+
+/* IDs */
+#main-content { padding: 20px; }
+#sidebar { width: 25%; }
+
+/* Element Selectors */
+div { border: 1px solid #ccc; }
+p.error { color: red; }
+
+/* Combinators */
+.container .header { font-size: 24px; }
+.nav > li { margin: 5px; }
+
+/* Pseudo-classes */
+.btn-primary:hover { background-color: darkblue; }
+.nav-item:first-child { font-weight: bold; }
+
+/* Attribute Selectors */
+[data-type="button"] { cursor: pointer; }
+input[type="text"] { border-radius: 4px; }
+
+/* Unused Complex Selectors */
+.unused-div span { display: none; }
+.unused-pseudo:hover { opacity: 0.8; }

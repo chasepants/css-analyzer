@@ -12,14 +12,11 @@ class CSSSelectorParser:
         try:
             with open(css_file, 'r', encoding='utf-8') as f:
                 content = f.read()
-            # Remove CSS comments
             content = re.sub(r'/\*.*?\*/', '', content, flags=re.DOTALL)
-            # Pattern to match selectors followed by their rules
             selector_pattern = r'([^{]+)\s*{[^}]*}'
             matches = re.findall(selector_pattern, content)
             selectors = {}
             for selector in matches:
-                # Split comma-separated selectors and clean them
                 clean_selectors = [s.strip() for s in selector.split(',') if s.strip()]
                 for sel in clean_selectors:
                     selectors[sel] = str(css_file)
@@ -31,23 +28,15 @@ class CSSSelectorParser:
 class UsageDetector:
     """Detects usage of CSS selectors in files."""
     def __init__(self):
-        # Pattern for PHP echo statements
         self.echo_pattern = r'echo\s*([\'"])(.*?)\1;'
-        # Pattern for class attributes
         self.class_pattern = r'class=["\']([^"\']*?)["\']'
-        # Pattern for ID attributes
         self.id_pattern = r'id=["\']([^"\']*?)["\']'
-        # Pattern for HTML elements (matches partial tags)
         self.element_pattern = r'<([a-zA-Z][\w-]*)\b[^>]*'
-        # Pattern for attributes (handles hyphens in names)
         self.attr_pattern = r'([\w-]+)="\s*([^"]*?)\s*"'
-        # Pattern to identify HTML tags with classes
         self.html_tag_pattern = r'<[^>]+class=["\'][^>]*>'
-        # Pattern to skip standalone PHP variables
         self.php_var_pattern = r'^\s*\$[\w]+'
 
     def detect_class_usage(self, line: str, selectors: Set[str]) -> List[Tuple[str, str]]:
-        """Detect usage of class selectors (e.g., .my-class)."""
         usages = []
         for match in re.finditer(self.class_pattern, line):
             classes = match.group(1).split()
@@ -58,7 +47,6 @@ class UsageDetector:
         return usages
 
     def detect_id_usage(self, line: str, selectors: Set[str]) -> List[Tuple[str, str]]:
-        """Detect usage of ID selectors (e.g., #my-id)."""
         usages = []
         for match in re.finditer(self.id_pattern, line):
             css_id = match.group(1)
@@ -68,7 +56,6 @@ class UsageDetector:
         return usages
 
     def detect_element_usage(self, line: str, selectors: Set[str]) -> List[Tuple[str, str]]:
-        """Detect usage of element selectors (e.g., div)."""
         usages = []
         for match in re.finditer(self.element_pattern, line):
             element = match.group(1)
@@ -77,7 +64,6 @@ class UsageDetector:
         return usages
 
     def detect_attribute_usage(self, line: str, selectors: Set[str]) -> List[Tuple[str, str]]:
-        """Detect usage of attribute selectors (e.g., [data-type='value'])."""
         usages = []
         if '<' in line and '>' in line:
             for match in re.finditer(self.attr_pattern, line):
@@ -89,7 +75,6 @@ class UsageDetector:
         return usages
 
     def detect_combo_usage(self, line: str, selectors: Set[str]) -> List[Tuple[str, str]]:
-        """Detect usage of element-class combinations (e.g., p.error)."""
         usages = []
         element_matches = list(re.finditer(self.element_pattern, line))
         class_matches = list(re.finditer(self.class_pattern, line))
@@ -103,7 +88,6 @@ class UsageDetector:
         return usages
 
     def detect_echo_usage(self, line: str, selectors: Set[str]) -> List[Tuple[str, str]]:
-        """Detect selector usage within PHP echo statements."""
         usages = []
         for match in re.finditer(self.echo_pattern, line):
             echo_content = match.group(2)
@@ -112,24 +96,20 @@ class UsageDetector:
             usages.extend(self.detect_element_usage(echo_content, selectors))
             usages.extend(self.detect_attribute_usage(echo_content, selectors))
             usages.extend(self.detect_combo_usage(echo_content, selectors))
- 
         return [(selector, line) for (selector, _) in usages]
 
 class CSSAnalyzer:
     def __init__(self, css_file: str, search_dir: str):
-        """Initialize with CSS file and directory to search."""
         self.css_file = Path(css_file)
         self.search_dir = Path(search_dir)
         self.selectors = {}
         self.usages = []
 
     def parse_css(self) -> None:
-        """Parse the CSS file to extract selectors."""
         parser = CSSSelectorParser()
         self.selectors = parser.parse(self.css_file)
 
     def find_usages(self) -> None:
-        """Search for selector usages in HTML and PHP files."""
         for root, _, files in os.walk(self.search_dir):
             for file in files:
                 if file.endswith(('.html', '.php')):
@@ -137,15 +117,17 @@ class CSSAnalyzer:
                     self._analyze_file(file_path)
 
     def _analyze_file(self, file_path: Path) -> None:
-        """Analyze a single file for selector usages."""
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 lines = f.readlines()
 
             detector = UsageDetector()
+            file_content = ''.join(lines)
+            file_selectors = set()
+            selector_lines = {}
+
             for line_num, line in enumerate(lines, 1):
                 line = line.strip()
-                # Skip lines that are just PHP variable declarations without HTML
                 if re.match(detector.php_var_pattern, line) and not re.search(detector.html_tag_pattern, line):
                     continue
 
@@ -159,12 +141,40 @@ class CSSAnalyzer:
                 all_usages = class_usages + id_usages + element_usages + attr_usages + combo_usages + echo_usages
                 for selector, usage_line in all_usages:
                     self.usages.append((selector, str(file_path), line_num, usage_line))
+                    file_selectors.add(selector)
+                    if selector not in selector_lines:
+                        selector_lines[selector] = (line_num, usage_line)
+
+            # Check combinators across the entire file
+            for selector in self.selectors.keys():
+                if ' ' in selector or '>' in selector:
+                    parts = re.split(r'\s+|>', selector)
+                    parts = [p.strip() for p in parts if p.strip()]
+                    if len(parts) > 1:
+                        all_present = all(
+                            part in file_selectors or
+                            (part.startswith('.') and f'class="{part[1:]}"' in file_content) or
+                            (part.startswith('#') and f'id="{part[1:]}"' in file_content)
+                            for part in parts
+                        )
+                        if all_present and selector not in [u[0] for u in self.usages]:
+                            earliest_line_num = float('inf')
+                            earliest_line = ''
+                            for part in parts:
+                                if part in selector_lines:
+                                    part_line_num, part_line = selector_lines[part]
+                                    if part_line_num < earliest_line_num:
+                                        earliest_line_num = part_line_num
+                                        earliest_line = part_line
+                            if earliest_line_num != float('inf'):
+                                self.usages.append((selector, str(file_path), earliest_line_num, earliest_line))
+                            else:
+                                self.usages.append((selector, str(file_path), 1, lines[0].strip()))
 
         except Exception as e:
             print(f"Error analyzing {file_path}: {e}")
 
     def generate_csv(self, output_file: str) -> None:
-        """Generate a CSV report of selector usage."""
         with open(output_file, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             writer.writerow(['CSS Element', 'Defined In', 'Used?', 'File', 'Line Number', 'Line of Code'])
