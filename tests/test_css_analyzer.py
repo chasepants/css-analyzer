@@ -1,6 +1,4 @@
-# tests/test_css_analyzer.py
 import pytest
-from pathlib import Path
 from unittest.mock import Mock
 from css_analyzer.css_analyzer import CSSAnalyzer
 from css_analyzer.types import UsageData

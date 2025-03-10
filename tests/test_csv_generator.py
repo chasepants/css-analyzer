@@ -1,6 +1,4 @@
-# tests/test_csv_generator.py
 import pytest
-from pathlib import Path
 import csv
 from css_analyzer.csv_generator import CSVGenerator
 from css_analyzer.types import UsageData

@@ -1,4 +1,3 @@
-# tests/test_cli.py
 import pytest
 from unittest.mock import Mock, patch, ANY
 from pathlib import Path
@@ -33,7 +32,7 @@ def test_main_basic_execution(tmp_path, mock_argv, setup_files):
     """Test basic execution of main() with valid arguments."""
     css_file, search_dir = setup_files
     output_file = tmp_path / "output.csv"
-    args = ["css-analyzer", str(css_file), str(search_dir), "-o", str(output_file)]
+    args = ["css-analyzer", "--css", str(css_file), "--targets", str(search_dir), "-o", str(output_file)]
 
     with mock_argv(args):
         with patch("css_analyzer.cli.CSSSelectorParser") as mock_parser, \
@@ -64,7 +63,7 @@ def test_main_no_files_in_search_dir(tmp_path, mock_argv):
     search_dir = tmp_path / "empty_dir"
     search_dir.mkdir()
     output_file = tmp_path / "output.csv"
-    args = ["css-analyzer", str(css_file), str(search_dir), "-o", str(output_file)]
+    args = ["css-analyzer", "--css", str(css_file), "--targets", str(search_dir), "-o", str(output_file)]
 
     with mock_argv(args):
         with patch("css_analyzer.cli.CSSSelectorParser") as mock_parser, \
@@ -91,7 +90,7 @@ def test_main_missing_css_file(mock_argv):
     """Test main() with a non-existent CSS file."""
     css_file = "nonexistent.css"
     search_dir = "src"
-    args = ["css-analyzer", css_file, search_dir]
+    args = ["css-analyzer", "--css", css_file, "--targets", search_dir]
 
     with mock_argv(args):
         with pytest.raises(ValueError, match="nonexistent.css must be a CSS file"):
@@ -102,7 +101,7 @@ def test_main_custom_output_path(tmp_path, mock_argv, setup_files):
     css_file, search_dir = setup_files
     custom_output = tmp_path / "custom" / "result.csv"
     custom_output.parent.mkdir()
-    args = ["css-analyzer", str(css_file), str(search_dir), "-o", str(custom_output)]
+    args = ["css-analyzer", "--css", str(css_file), "--targets", str(search_dir), "-o", str(custom_output)]
 
     with mock_argv(args):
         with patch("css_analyzer.cli.CSSSelectorParser") as mock_parser, \
@@ -126,7 +125,7 @@ def test_main_finalizes_unused_selectors(tmp_path, mock_argv, setup_files):
     """Test that main() includes unused selectors in the output."""
     css_file, search_dir = setup_files
     output_file = tmp_path / "output.csv"
-    args = ["css-analyzer", str(css_file), str(search_dir), "-o", str(output_file)]
+    args = ["css-analyzer", "--css", str(css_file), "--targets", str(search_dir), "-o", str(output_file)]
 
     with mock_argv(args):
         with patch("css_analyzer.cli.CSSSelectorParser") as mock_parser, \
@@ -154,7 +153,7 @@ def test_main_updates_defined_in(tmp_path, mock_argv, setup_files):
     """Test that main() updates defined_in for used selectors."""
     css_file, search_dir = setup_files
     output_file = tmp_path / "output.csv"
-    args = ["css-analyzer", str(css_file), str(search_dir), "-o", str(output_file)]
+    args = ["css-analyzer", "--css", str(css_file), "--targets", str(search_dir), "-o", str(output_file)]
 
     with mock_argv(args):
         with patch("css_analyzer.cli.CSSSelectorParser") as mock_parser, \
@@ -190,7 +189,7 @@ def test_main_all_flag(tmp_path, mock_argv):
     html_file = search_dir / "index.html"
     html_file.write_text('<div class="container">')
     output_file = tmp_path / "output.csv"
-    args = ["css-analyzer", str(css_dir), str(search_dir), "-o", str(output_file), "-a"]
+    args = ["css-analyzer", "--css", str(css_dir), "--targets", str(search_dir), "-o", str(output_file), "-a"]
 
     with mock_argv(args):
         with patch("css_analyzer.cli.CSSSelectorParser") as mock_parser, \

@@ -1,6 +1,4 @@
-# tests/test_css_selector_parser.py
 import pytest
-from pathlib import Path
 from css_analyzer.css_selector_parser import CSSSelectorParser
 
 @pytest.fixture

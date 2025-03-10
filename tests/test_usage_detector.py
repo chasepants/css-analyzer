@@ -1,8 +1,5 @@
-# tests/test_usage_detector.py
 import pytest
 from css_analyzer.usage_detector import UsageDetector
-from typing import Set
-import re
 
 @pytest.fixture
 def detector():

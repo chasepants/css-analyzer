@@ -9,24 +9,42 @@ import os
 
 def main():
     parser = argparse.ArgumentParser(description="CSS Usage Analyzer")
-    parser.add_argument("css_input", help="Path to a CSS file or folder containing CSS files (with --all)")
-    parser.add_argument("search_dir", help="Directory to search for HTML, PHP, and JS files")
-    parser.add_argument("-o", "--output", default="output.csv", help="Output CSV file path")
-    parser.add_argument("-a", "--all", action="store_true", help="Scan a folder for all CSS files instead of a single file")
+    parser.add_argument(
+        "--css",
+        required=True,
+        help="Path to a CSS file or folder containing CSS files (with --all)"
+    )
+    parser.add_argument(
+        "--targets",
+        required=True,
+        help="Directory to search for HTML, PHP, and JS files"
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        default="output.csv",
+        help="Output CSV file path (default: output.csv)"
+    )
+    parser.add_argument(
+        "-a",
+        "--all",
+        action="store_true",
+        help="Scan a folder for all CSS files instead of a single file"
+    )
     args = parser.parse_args()
 
     # Parse CSS files
     css_parser = CSSSelectorParser()
-    css_input_path = Path(args.css_input)
+    css_input_path = Path(args.css)
     if args.all:
         if not css_input_path.is_dir():
-            raise ValueError(f"With --all, {args.css_input} must be a directory")
+            raise ValueError(f"With --all, {args.css} must be a directory")
         css_files = [f for f in css_input_path.rglob("*.css") if f.is_file()]
         if not css_files:
-            raise ValueError(f"No CSS files found in {args.css_input}")
+            raise ValueError(f"No CSS files found in {args.css}")
     else:
         if not css_input_path.is_file():
-            raise ValueError(f"{args.css_input} must be a CSS file")
+            raise ValueError(f"{args.css} must be a CSS file")
         css_files = [css_input_path]
 
     # Parse all CSS files and combine selectors
@@ -43,7 +61,7 @@ def main():
     # Collect files to analyze
     files_to_analyze = [
         Path(root) / file
-        for root, _, files in os.walk(args.search_dir)
+        for root, _, files in os.walk(args.targets)
         for file in files if file.endswith(('.html', '.php', '.js'))
     ]
 
@@ -61,7 +79,7 @@ def main():
         if selector not in used_selectors:
             finalized_usages.append(UsageData(
                 selector=selector,
-                defined_in=selectors_dict[selector],  # Use specific CSS file path
+                defined_in=selectors_dict[selector],
                 used="NO",
                 file="",
                 line_number=0,
@@ -70,7 +88,7 @@ def main():
         else:
             for usage in finalized_usages:
                 if usage.selector == selector:
-                    usage.defined_in = selectors_dict[selector]  # Update with specific CSS file
+                    usage.defined_in = selectors_dict[selector]
 
     # Generate CSV
     CSVGenerator.generate_csv(args.output, finalized_usages)

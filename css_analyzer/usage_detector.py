@@ -1,4 +1,3 @@
-# css_analyzer/usage_detector.py
 import re
 from typing import List, Set, Tuple
 
