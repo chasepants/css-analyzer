@@ -67,7 +67,6 @@ class UsageDetector:
 
     def detect_pseudo_usage(self, line: str, selectors: Set[str]) -> List[Tuple[str, str]]:
         usages = []
-        # Inline styles
         for match in re.finditer(self.style_pattern, line):
             style_content = match.group(0)
             classes = re.findall(self.class_pattern, line)
@@ -76,22 +75,22 @@ class UsageDetector:
                     base, pseudo = selector.split(':', 1)
                     if base in [f".{cls}" for cls in classes] and f":{pseudo}" in style_content:
                         usages.append((selector, line))
-        # JS class manipulations
         for match in re.finditer(self.js_class_pattern, line):
             full_class = match.group(2)
             css_selector = f".{full_class}"
-            if full_class in selectors:
-                usages.append((full_class, line))
+            if css_selector in selectors:
+                usages.append((css_selector, line))
         return usages
 
     def detect_echo_usage(self, line: str, selectors: Set[str]) -> List[Tuple[str, str]]:
         usages = []
         for match in re.finditer(self.echo_pattern, line):
             echo_content = match.group(2)
-            usages.extend(self.detect_class_usage(echo_content, selectors))
-            usages.extend(self.detect_id_usage(echo_content, selectors))
-            usages.extend(self.detect_element_usage(echo_content, selectors))
-            usages.extend(self.detect_attribute_usage(echo_content, selectors))
-            usages.extend(self.detect_combo_usage(echo_content, selectors))
-            usages.extend(self.detect_pseudo_usage(echo_content, selectors))
+            normalized_content = echo_content.replace('\\"', '"').replace("\\'", "'")
+            usages.extend(self.detect_class_usage(normalized_content, selectors))
+            usages.extend(self.detect_id_usage(normalized_content, selectors))
+            usages.extend(self.detect_element_usage(normalized_content, selectors))
+            usages.extend(self.detect_attribute_usage(normalized_content, selectors))
+            usages.extend(self.detect_combo_usage(normalized_content, selectors))
+            usages.extend(self.detect_pseudo_usage(normalized_content, selectors))
         return [(selector, line) for (selector, _) in usages]

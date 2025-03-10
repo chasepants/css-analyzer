@@ -34,6 +34,7 @@ def main():
     # Analyze files and accumulate usages
     all_usages = []
     for file_path in files_to_analyze:
+        print(f"scanning {file_path}")
         file_usages = analyzer.analyze_file(selectors_set, file_path)
         all_usages.extend(file_usages)
 
@@ -51,12 +52,10 @@ def main():
                 line=""
             ))
         else:
-            # Update defined_in for all usages of this selector
             for usage in finalized_usages:
                 if usage.selector == selector:
                     usage.defined_in = css_file_path
 
-    # Generate CSV
     CSVGenerator.generate_csv(args.output, finalized_usages)
 
 if __name__ == "__main__":

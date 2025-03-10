@@ -82,11 +82,6 @@ def test_detect_pseudo_usage_js_classlist(detector):
     line = 'element.classList.add("btn:hover");'
     selectors = {".btn:hover", ".btn:active"}
     result = detector.detect_pseudo_usage(line, selectors)
-    # # Debug: Check matches
-    # matches = list(re.finditer(detector.js_class_pattern, line))
-    # print(f"Matches: {matches}")
-    # if matches:
-    #     print(f"Group 2: {matches[0].group(2)}")
     expected = [(".btn:hover", line)]
     assert result == expected
 
