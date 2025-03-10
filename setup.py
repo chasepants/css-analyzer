@@ -10,13 +10,16 @@ setup(
     name='css-analyzer',
     version='0.1.0',
     packages=find_packages(),
-    install_requires=[
-        'setuptools',
-        'dataclasses'
-    ],
+    install_requires=[],
     entry_points={
         'console_scripts': [
             'css-analyzer=css_analyzer.cli:main',
+        ],
+    },
+    extras_require={
+        "dev": [
+            "pytest>=7.0.0",
+            "coverage>=7.0.0",
         ],
     },
     author='Chase Parks',

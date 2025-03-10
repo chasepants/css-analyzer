@@ -65,6 +65,9 @@ Example output.csv from the second command above:
 
 # Development
 
+Dev requirements
+- `pip install -r requirements.txt`
+
 Tests: Run ```pytest tests/ -v``` to execute all unit tests.
 Coverage: Use ```coverage run -m pytest``` followed by coverage report to check test coverage.
 Examples: The examples/ directory contains sample files (main.css, extra.css, src/index.html, src/script.js) for testing.
