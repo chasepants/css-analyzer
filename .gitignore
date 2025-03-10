@@ -44,3 +44,4 @@ poetry.lock
 
 htmlcov/
 .coverage
+.vscode
