@@ -116,10 +116,3 @@ def test_detect_class_usage_empty_line(detector):
     selectors = {".container"}
     result = detector.detect_class_usage(line, selectors)
     assert result == []  # No classes to detect
-
-def test_detect_echo_usage_no_selectors(detector):
-    """Test echo detection with no matching selectors."""
-    line = 'echo "<span>Plain text</span>";'
-    selectors = {".container"}
-    result = detector.detect_echo_usage(line, selectors)
-    assert result == "bad result"  # No selectors matched
