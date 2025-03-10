@@ -16,16 +16,17 @@ A tool to analyze CSS selector usage across HTML, PHP, and JavaScript files, hel
     source venv/bin/activate  # On Windows: venv\Scripts\activate
     pip install -r requirements.txt
 ```
+
 ## Usage
 
 Run the tool using the css-analyzer command (installed via pip install -e . if set up as a package) or directly with python -m css_analyzer.cli.
 
 ### Options
 
---css <path> (required): Path to a single CSS file or a folder containing CSS files (use with --all).
---targets <directory> (required): Directory to search for HTML, PHP, and JS files to analyze for CSS usage.
--o, --output <file> (optional): Output CSV file path (default: output.csv).
--a, --all (optional): Scan a folder for all .css files instead of a single file.
+- --css <path> (required): Path to a single CSS file or a folder containing CSS files (use with --all).
+- --targets <directory> (required): Directory to search for HTML, PHP, and JS files to analyze for CSS usage.
+- -o, --output <file> (optional): Output CSV file path (default: output.csv).
+- -a, --all (optional): Scan a folder for all .css files instead of a single file.
 
 ### Examples
 
@@ -62,20 +63,13 @@ Example output.csv from the second command above:
     .footer,examples/extra.css,NO,,0,
 ```
 
-## Contributing
-
-### Disclamer
-
-- Feel free to create a pull request for any small enhancements that can be made
-- For larger efforts, create an issue so that our requirements can be aligned
-
-### Development
+# Development
 
 Tests: Run ```pytest tests/ -v``` to execute all unit tests.
 Coverage: Use ```coverage run -m pytest``` followed by coverage report to check test coverage.
 Examples: The examples/ directory contains sample files (main.css, extra.css, src/index.html, src/script.js) for testing.
 
-### Setting Up Git Hooks
+## Setting Up Git Hooks
 
 To enforce test and coverage checks before pushing:
 
