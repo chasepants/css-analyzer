@@ -31,3 +31,8 @@ input[type="text"] { border-radius: 4px; }
 /* Unused Complex Selectors */
 .unused-div span { display: none; }
 .unused-pseudo:hover { opacity: 0.8; }
+
+/* Existing content... */
+.btn-primary:hover { background: red; }
+.nav-item:first-child { font-weight: bold; }
+.container .nested-header { border: 1px solid gray; }

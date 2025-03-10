@@ -5,4 +5,6 @@ document.addEventListener('DOMContentLoaded', function() {
     button.className = 'btn-primary';
     button.textContent = 'Dynamic Button';
     document.querySelector('.container').appendChild(button);
+    document.querySelector('.btn-primary').classList.add('btn-primary:hover');
+    document.querySelector('.nav-item').classList.toggle('nav-item:first-child');
 });

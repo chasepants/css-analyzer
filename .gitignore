@@ -41,3 +41,6 @@ output.csv
 # Dependency lock files (if you use them)
 Pipfile.lock
 poetry.lock
+
+htmlcov/
+.coverage
