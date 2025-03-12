@@ -31,6 +31,12 @@ def main():
         action="store_true",
         help="Scan a folder for all CSS files instead of a single file"
     )
+    parser.add_argument(
+        "-c",
+        "--condensed",
+        action="store_true",
+        help="Condense duplicate selectors into one row with a usage count"
+    )
     args = parser.parse_args()
 
     # Parse CSS files
@@ -73,25 +79,67 @@ def main():
         all_usages.extend(file_usages)
 
     # Finalize usage data
-    used_selectors = set(u.selector for u in all_usages)
-    finalized_usages = all_usages[:]
-    for selector in selectors_set:
-        if selector not in used_selectors:
-            finalized_usages.append(UsageData(
-                selector=selector,
-                defined_in=selectors_dict[selector],
-                used="NO",
-                file="",
-                line_number=0,
-                line=""
-            ))
-        else:
-            for usage in finalized_usages:
-                if usage.selector == selector:
-                    usage.defined_in = selectors_dict[selector]
+    if args.condensed:
+        # Aggregate duplicates into one entry per selector with a file count
+        selector_data = {}
+        for usage in all_usages:
+            selector = usage.selector
+            if selector not in selector_data:
+                selector_data[selector] = {
+                    "defined_in": selectors_dict[selector],
+                    "used": usage.used,
+                    "files": set(),
+                    "count": 0
+                }
+            if usage.used == "YES":
+                selector_data[selector]["files"].add(usage.file)
+                selector_data[selector]["count"] = len(selector_data[selector]["files"])
+
+        # Build finalized usages with counts
+        finalized_usages = []
+        for selector in selectors_set:
+            if selector in selector_data:
+                data = selector_data[selector]
+                finalized_usages.append(UsageData(
+                    selector=selector,
+                    defined_in=data["defined_in"],
+                    used=data["used"],
+                    file="",  # No specific file in condensed mode
+                    line_number=0,
+                    line="",
+                    count=data["count"]
+                ))
+            else:
+                finalized_usages.append(UsageData(
+                    selector=selector,
+                    defined_in=selectors_dict[selector],
+                    used="NO",
+                    file="",
+                    line_number=0,
+                    line="",
+                    count=0
+                ))
+    else:
+        # Original detailed mode
+        used_selectors = set(u.selector for u in all_usages)
+        finalized_usages = all_usages[:]
+        for selector in selectors_set:
+            if selector not in used_selectors:
+                finalized_usages.append(UsageData(
+                    selector=selector,
+                    defined_in=selectors_dict[selector],
+                    used="NO",
+                    file="",
+                    line_number=0,
+                    line=""
+                ))
+            else:
+                for usage in finalized_usages:
+                    if usage.selector == selector:
+                        usage.defined_in = selectors_dict[selector]
 
     # Generate CSV
-    CSVGenerator.generate_csv(args.output, finalized_usages)
+    CSVGenerator.generate_csv(args.output, finalized_usages, condensed=args.condensed)
 
 if __name__ == "__main__":
     main()

@@ -8,3 +8,4 @@ class UsageData:
     file: str
     line_number: int
     line: str
+    count: int = 0  # Number of unique files using the selector, used in condensed mode

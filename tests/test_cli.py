@@ -1,3 +1,4 @@
+# tests/test_cli.py
 import pytest
 from unittest.mock import Mock, patch, ANY
 from pathlib import Path
@@ -54,7 +55,7 @@ def test_main_basic_execution(tmp_path, mock_argv, setup_files):
             mock_analyzer_instance.analyze_file.assert_called_once_with(
                 {".container", ".unused"}, search_dir / "index.html"
             )
-            mock_csv_generator.generate_csv.assert_called_once()
+            mock_csv_generator.generate_csv.assert_called_once_with(str(output_file), ANY, condensed=False)
 
 def test_main_no_files_in_search_dir(tmp_path, mock_argv):
     """Test main() when no files are found in the search directory."""
@@ -80,7 +81,7 @@ def test_main_no_files_in_search_dir(tmp_path, mock_argv):
             main()
 
             mock_analyzer_instance.analyze_file.assert_not_called()
-            mock_csv_generator.generate_csv.assert_called_once()
+            mock_csv_generator.generate_csv.assert_called_once_with(str(output_file), ANY, condensed=False)
             call_args = mock_csv_generator.generate_csv.call_args[0]
             assert len(call_args[1]) == 1
             assert call_args[1][0].selector == ".container"
@@ -119,7 +120,7 @@ def test_main_custom_output_path(tmp_path, mock_argv, setup_files):
 
             main()
 
-            mock_csv_generator.generate_csv.assert_called_once_with(str(custom_output), ANY)
+            mock_csv_generator.generate_csv.assert_called_once_with(str(custom_output), ANY, condensed=False)
 
 def test_main_finalizes_unused_selectors(tmp_path, mock_argv, setup_files):
     """Test that main() includes unused selectors in the output."""
@@ -143,6 +144,7 @@ def test_main_finalizes_unused_selectors(tmp_path, mock_argv, setup_files):
 
             main()
 
+            mock_csv_generator.generate_csv.assert_called_once_with(str(output_file), ANY, condensed=False)
             call_args = mock_csv_generator.generate_csv.call_args[0]
             usages = call_args[1]
             assert len(usages) == 2
@@ -171,6 +173,7 @@ def test_main_updates_defined_in(tmp_path, mock_argv, setup_files):
 
             main()
 
+            mock_csv_generator.generate_csv.assert_called_once_with(str(output_file), ANY, condensed=False)
             call_args = mock_csv_generator.generate_csv.call_args[0]
             usages = call_args[1]
             assert len(usages) == 1
@@ -210,9 +213,39 @@ def test_main_all_flag(tmp_path, mock_argv):
 
             main()
 
-            mock_csv_generator.generate_csv.assert_called_once()
+            mock_csv_generator.generate_csv.assert_called_once_with(str(output_file), ANY, condensed=False)
             call_args = mock_csv_generator.generate_csv.call_args[0]
             usages = call_args[1]
             assert len(usages) == 2
             assert any(u.selector == ".container" and u.used == "YES" and u.defined_in == str(css1) for u in usages)
             assert any(u.selector == ".header" and u.used == "NO" and u.defined_in == str(css2) for u in usages)
+
+def test_main_condensed_mode(tmp_path, mock_argv, setup_files):
+    """Test main() with --condensed flag to aggregate duplicate selectors."""
+    css_file, search_dir = setup_files
+    output_file = tmp_path / "output.csv"
+    args = ["css-analyzer", "--css", str(css_file), "--targets", str(search_dir), "-o", str(output_file), "-c"]
+
+    with mock_argv(args):
+        with patch("css_analyzer.cli.CSSSelectorParser") as mock_parser, \
+             patch("css_analyzer.cli.UsageDetector") as mock_detector, \
+             patch("css_analyzer.cli.CSSAnalyzer") as mock_analyzer, \
+             patch("css_analyzer.cli.CSVGenerator") as mock_csv_generator, \
+             patch("css_analyzer.cli.os.walk") as mock_walk:
+            mock_parser.return_value.parse.return_value = {".container": str(css_file), ".unused": str(css_file)}
+            mock_walk.return_value = [(str(search_dir), (), ("index.html",))]
+            mock_analyzer_instance = mock_analyzer.return_value
+            mock_analyzer_instance.analyze_file.return_value = [
+                UsageData(".container", "", "YES", str(search_dir / "index.html"), 1, '<div class="container">Content</div>'),
+                UsageData(".container", "", "YES", str(search_dir / "index.html"), 2, '<div class="container">Another</div>')  # Duplicate
+            ]
+            mock_csv_generator.generate_csv = Mock()
+
+            main()
+
+            mock_csv_generator.generate_csv.assert_called_once_with(str(output_file), ANY, condensed=True)
+            call_args = mock_csv_generator.generate_csv.call_args[0]
+            usages = call_args[1]
+            assert len(usages) == 2  # .container and .unused
+            assert any(u.selector == ".container" and u.used == "YES" and u.count == 1 and u.file == "" for u in usages)
+            assert any(u.selector == ".unused" and u.used == "NO" and u.count == 0 and u.file == "" for u in usages)
