@@ -237,7 +237,7 @@ def test_main_condensed_mode(tmp_path, mock_argv, setup_files):
             mock_analyzer_instance = mock_analyzer.return_value
             mock_analyzer_instance.analyze_file.return_value = [
                 UsageData(".container", "", "YES", str(search_dir / "index.html"), 1, '<div class="container">Content</div>'),
-                UsageData(".container", "", "YES", str(search_dir / "index.html"), 2, '<div class="container">Another</div>')  # Duplicate
+                UsageData(".container", "", "YES", str(search_dir / "index.html"), 2, '<div class="container">Another</div>')
             ]
             mock_csv_generator.generate_csv = Mock()
 
@@ -246,6 +246,35 @@ def test_main_condensed_mode(tmp_path, mock_argv, setup_files):
             mock_csv_generator.generate_csv.assert_called_once_with(str(output_file), ANY, condensed=True)
             call_args = mock_csv_generator.generate_csv.call_args[0]
             usages = call_args[1]
-            assert len(usages) == 2  # .container and .unused
+            assert len(usages) == 2
             assert any(u.selector == ".container" and u.used == "YES" and u.count == 1 and u.file == "" for u in usages)
             assert any(u.selector == ".unused" and u.used == "NO" and u.count == 0 and u.file == "" for u in usages)
+
+def test_main_unused_mode(tmp_path, mock_argv, setup_files):
+    """Test main() with --unused flag to show only unused selectors."""
+    css_file, search_dir = setup_files
+    output_file = tmp_path / "output.csv"
+    args = ["css-analyzer", "--css", str(css_file), "--targets", str(search_dir), "-o", str(output_file), "-u"]
+
+    with mock_argv(args):
+        with patch("css_analyzer.cli.CSSSelectorParser") as mock_parser, \
+             patch("css_analyzer.cli.UsageDetector") as mock_detector, \
+             patch("css_analyzer.cli.CSSAnalyzer") as mock_analyzer, \
+             patch("css_analyzer.cli.CSVGenerator") as mock_csv_generator, \
+             patch("css_analyzer.cli.os.walk") as mock_walk:
+            mock_parser.return_value.parse.return_value = {".container": str(css_file), ".unused": str(css_file)}
+            mock_walk.return_value = [(str(search_dir), (), ("index.html",))]
+            mock_analyzer_instance = mock_analyzer.return_value
+            mock_analyzer_instance.analyze_file.return_value = [
+                UsageData(".container", "", "YES", str(search_dir / "index.html"), 1, '<div class="container">Content</div>')
+            ]
+            mock_csv_generator.generate_csv = Mock()
+
+            main()
+
+            mock_csv_generator.generate_csv.assert_called_once_with(str(output_file), ANY, condensed=False)
+            call_args = mock_csv_generator.generate_csv.call_args[0]
+            usages = call_args[1]
+            assert len(usages) == 1  # Only .unused should remain
+            assert all(u.used == "NO" for u in usages)
+            assert any(u.selector == ".unused" and u.defined_in == str(css_file) for u in usages)

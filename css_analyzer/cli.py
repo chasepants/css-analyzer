@@ -1,3 +1,4 @@
+# css_analyzer/cli.py
 import argparse
 from pathlib import Path
 from css_analyzer.css_selector_parser import CSSSelectorParser
@@ -36,6 +37,12 @@ def main():
         "--condensed",
         action="store_true",
         help="Condense duplicate selectors into one row with a usage count"
+    )
+    parser.add_argument(
+        "-u",
+        "--unused",
+        action="store_true",
+        help="Show only unused selectors in the output"
     )
     args = parser.parse_args()
 
@@ -78,6 +85,9 @@ def main():
         file_usages = analyzer.analyze_file(selectors_set, file_path)
         all_usages.extend(file_usages)
 
+    # Define used selectors once, before mode-specific logic
+    used_selectors = set(u.selector for u in all_usages)
+
     # Finalize usage data
     if args.condensed:
         # Aggregate duplicates into one entry per selector with a file count
@@ -100,16 +110,17 @@ def main():
         for selector in selectors_set:
             if selector in selector_data:
                 data = selector_data[selector]
-                finalized_usages.append(UsageData(
-                    selector=selector,
-                    defined_in=data["defined_in"],
-                    used=data["used"],
-                    file="",  # No specific file in condensed mode
-                    line_number=0,
-                    line="",
-                    count=data["count"]
-                ))
-            else:
+                if not args.unused or data["used"] == "NO":  # Include only unused if --unused is set
+                    finalized_usages.append(UsageData(
+                        selector=selector,
+                        defined_in=data["defined_in"],
+                        used=data["used"],
+                        file="",
+                        line_number=0,
+                        line="",
+                        count=data["count"]
+                    ))
+            elif not args.unused or selector not in used_selectors:
                 finalized_usages.append(UsageData(
                     selector=selector,
                     defined_in=selectors_dict[selector],
@@ -121,7 +132,6 @@ def main():
                 ))
     else:
         # Original detailed mode
-        used_selectors = set(u.selector for u in all_usages)
         finalized_usages = all_usages[:]
         for selector in selectors_set:
             if selector not in used_selectors:
@@ -137,6 +147,8 @@ def main():
                 for usage in finalized_usages:
                     if usage.selector == selector:
                         usage.defined_in = selectors_dict[selector]
+        if args.unused:
+            finalized_usages = [u for u in finalized_usages if u.used == "NO"]
 
     # Generate CSV
     CSVGenerator.generate_csv(args.output, finalized_usages, condensed=args.condensed)
