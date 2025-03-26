@@ -1,4 +1,3 @@
-# css_analyzer/cli.py
 import argparse
 from pathlib import Path
 from css_analyzer.css_selector_parser import CSSSelectorParser
@@ -44,6 +43,21 @@ def main():
         action="store_true",
         help="Show only unused selectors in the output"
     )
+    parser.add_argument(
+        "--php",
+        action="store_true",
+        help="Include PHP files in the analysis"
+    )
+    parser.add_argument(
+        "--html",
+        action="store_true",
+        help="Include HTML files in the analysis"
+    )
+    parser.add_argument(
+        "--js",
+        action="store_true",
+        help="Include JavaScript files in the analysis"
+    )
     args = parser.parse_args()
 
     # Parse CSS files
@@ -71,11 +85,23 @@ def main():
     detector = UsageDetector()
     analyzer = CSSAnalyzer(detector)
 
-    # Collect files to analyze
+    # Determine file types to analyze (default to all if none specified)
+    file_extensions = []
+    if args.php or args.html or args.js:
+        if args.php:
+            file_extensions.append('.php')
+        if args.html:
+            file_extensions.append('.html')
+        if args.js:
+            file_extensions.append('.js')
+    else:
+        file_extensions = ['.html', '.php', '.js']  # Default behavior
+
+    # Collect files to analyze based on specified extensions
     files_to_analyze = [
         Path(root) / file
         for root, _, files in os.walk(args.targets)
-        for file in files if file.endswith(('.html', '.php', '.js'))
+        for file in files if any(file.endswith(ext) for ext in file_extensions)
     ]
 
     # Analyze files and accumulate usages
@@ -85,12 +111,11 @@ def main():
         file_usages = analyzer.analyze_file(selectors_set, file_path)
         all_usages.extend(file_usages)
 
-    # Define used selectors once, before mode-specific logic
+    # Define used selectors
     used_selectors = set(u.selector for u in all_usages)
 
     # Finalize usage data
     if args.condensed:
-        # Aggregate duplicates into one entry per selector with a file count
         selector_data = {}
         for usage in all_usages:
             selector = usage.selector
@@ -105,12 +130,11 @@ def main():
                 selector_data[selector]["files"].add(usage.file)
                 selector_data[selector]["count"] = len(selector_data[selector]["files"])
 
-        # Build finalized usages with counts
         finalized_usages = []
         for selector in selectors_set:
             if selector in selector_data:
                 data = selector_data[selector]
-                if not args.unused or data["used"] == "NO":  # Include only unused if --unused is set
+                if not args.unused or data["used"] == "NO":
                     finalized_usages.append(UsageData(
                         selector=selector,
                         defined_in=data["defined_in"],
@@ -131,7 +155,6 @@ def main():
                     count=0
                 ))
     else:
-        # Original detailed mode
         finalized_usages = all_usages[:]
         for selector in selectors_set:
             if selector not in used_selectors:
