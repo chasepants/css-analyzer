@@ -3,44 +3,47 @@ import re
 from typing import List, Set
 from .usage_detector import UsageDetector
 from .types import UsageData
+import subprocess
 
 class CSSAnalyzer:
     def __init__(self, detector: UsageDetector):
         self.detector = detector
 
+    def _get_commit_date(self, file_path: Path, line_num: int) -> str:
+        try:
+            result = subprocess.run(
+                ['git', 'blame', '-L', f'{line_num},{line_num}', '--porcelain', str(file_path)],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            for line in result.stdout.splitlines():
+                if line.startswith('committer-time'):
+                    timestamp = int(line.split()[1])
+                    from datetime import datetime
+                    return datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d')
+            return ""
+        except (subprocess.SubprocessError, FileNotFoundError, ValueError):
+            return ""
+
     def _add_usage(self, usages: List[UsageData], seen: Set[tuple], selector: str, file_path: str, line_num: int, line: str) -> None:
-        """
-        Helper method to add a usage only if it’s unique.
-        
-        :param usages: List to append the UsageData to.
-        :param seen: Set tracking unique (selector, file, line_number) combinations.
-        :param selector: CSS selector found.
-        :param file_path: File where the selector is used.
-        :param line_num: Line number of the usage.
-        :param line: Line content where the selector appears.
-        """
         key = (selector, file_path, line_num)
         if key not in seen:
             seen.add(key)
+            commit_date = self._get_commit_date(Path(file_path), line_num)
             usages.append(UsageData(
                 selector=selector,
                 defined_in="",  # Filled by CLI
                 used="YES",
                 file=file_path,
                 line_number=line_num,
-                line=line.strip()
+                line=line.strip(),
+                usage_commit_date=commit_date
             ))
 
     def analyze_file(self, selectors: Set[str], file_path: Path) -> List[UsageData]:
-        """
-        Analyze a single file for CSS selector usages, ensuring no duplicates.
-
-        :param selectors: Set of CSS selectors to check.
-        :param file_path: Path to the file to analyze.
-        :return: List of unique UsageData objects.
-        """
         usages = []
-        seen = set()  # Tracks unique (selector, file, line_number) tuples
+        seen = set()
         file_str = str(file_path)
 
         try:
@@ -51,14 +54,11 @@ class CSSAnalyzer:
             file_selectors = set()
             selector_lines = {}
 
-            # First pass: Direct detections
             for line_num, line in enumerate(lines, 1):
                 line = line.strip()
-                # Skip PHP variable-only lines without HTML
                 if file_path.suffix == '.php' and re.match(self.detector.php_var_pattern, line) and not re.search(self.detector.html_tag_pattern, line):
                     continue
 
-                # Collect all usages from detection methods
                 all_usages = (
                     self.detector.detect_class_usage(line, selectors) +
                     self.detector.detect_id_usage(line, selectors) +
@@ -69,14 +69,12 @@ class CSSAnalyzer:
                     self.detector.detect_pseudo_usage(line, selectors)
                 )
 
-                # Add unique usages
                 for selector, usage_line in all_usages:
                     self._add_usage(usages, seen, selector, file_str, line_num, usage_line)
                     file_selectors.add(selector)
                     if selector not in selector_lines:
                         selector_lines[selector] = (line_num, usage_line)
 
-                # Handle standalone elements
                 for match in re.finditer(self.detector.element_pattern, line):
                     element = match.group(1)
                     if element in selectors:
@@ -85,7 +83,6 @@ class CSSAnalyzer:
                         if element not in selector_lines:
                             selector_lines[element] = (line_num, line)
 
-            # Second pass: Combinators and pseudo-classes
             for selector in selectors:
                 if ' ' in selector or '>' in selector:
                     parts = [p.strip() for p in re.split(r'\s+|>', selector) if p.strip()]

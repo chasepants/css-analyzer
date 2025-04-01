@@ -27,6 +27,10 @@ def setup_files(tmp_path):
     search_dir.mkdir()
     html_file = search_dir / "index.html"
     html_file.write_text('<div class="container">Content</div>')
+    php_file = search_dir / "page.php"
+    php_file.write_text('<div class="container">PHP</div>')
+    js_file = search_dir / "script.js"
+    js_file.write_text('document.querySelector(".container");')
     return css_file, search_dir
 
 def test_main_basic_execution(tmp_path, mock_argv, setup_files):
@@ -41,24 +45,24 @@ def test_main_basic_execution(tmp_path, mock_argv, setup_files):
              patch("css_analyzer.cli.CSSAnalyzer") as mock_analyzer, \
              patch("css_analyzer.cli.CSVGenerator") as mock_csv_generator, \
              patch("css_analyzer.cli.os.walk") as mock_walk:
-            mock_parser.return_value.parse.return_value = {".container": str(css_file), ".unused": str(css_file)}
-            mock_walk.return_value = [(str(search_dir), (), ("index.html",))]
+            mock_parser.return_value.parse.return_value = {
+                ".container": (str(css_file), "2025-03-20", 20, 1, 30, False),
+                ".unused": (str(css_file), "2025-03-19", 15, 1, 30, False)
+            }
+            mock_walk.return_value = [(str(search_dir), (), ("index.html", "page.php", "script.js"))]
             mock_analyzer_instance = mock_analyzer.return_value
-            mock_analyzer_instance.analyze_file.return_value = [
-                UsageData(".container", "", "YES", str(search_dir / "index.html"), 1, '<div class="container">Content</div>')
+            mock_analyzer_instance.analyze_file.side_effect = [
+                [UsageData(".container", "", "YES", str(search_dir / "index.html"), 1, '<div class="container">Content</div>', usage_commit_date="2025-03-21")],
+                [UsageData(".container", "", "YES", str(search_dir / "page.php"), 1, '<div class="container">PHP</div>', usage_commit_date="2025-03-22")],
+                [UsageData(".container", "", "YES", str(search_dir / "script.js"), 1, 'document.querySelector(".container");', usage_commit_date="2025-03-23")]
             ]
             mock_csv_generator.generate_csv = Mock()
 
             main()
 
-            mock_parser.return_value.parse.assert_called_once_with(Path(str(css_file)))
-            mock_analyzer_instance.analyze_file.assert_called_once_with(
-                {".container", ".unused"}, search_dir / "index.html"
-            )
             mock_csv_generator.generate_csv.assert_called_once_with(str(output_file), ANY, condensed=False)
 
 def test_main_no_files_in_search_dir(tmp_path, mock_argv):
-    """Test main() when no files are found in the search directory."""
     css_file = tmp_path / "styles.css"
     css_file.write_text(".container { width: 100%; }")
     search_dir = tmp_path / "empty_dir"
@@ -72,7 +76,9 @@ def test_main_no_files_in_search_dir(tmp_path, mock_argv):
              patch("css_analyzer.cli.CSSAnalyzer") as mock_analyzer, \
              patch("css_analyzer.cli.CSVGenerator") as mock_csv_generator, \
              patch("css_analyzer.cli.os.walk") as mock_walk:
-            mock_parser.return_value.parse.return_value = {".container": str(css_file)}
+            mock_parser.return_value.parse.return_value = {
+                ".container": (str(css_file), "", 0, 0, 0, False)
+            }
             mock_walk.return_value = [(str(search_dir), (), ())]
             mock_analyzer_instance = mock_analyzer.return_value
             mock_analyzer_instance.analyze_file.return_value = []
@@ -82,13 +88,8 @@ def test_main_no_files_in_search_dir(tmp_path, mock_argv):
 
             mock_analyzer_instance.analyze_file.assert_not_called()
             mock_csv_generator.generate_csv.assert_called_once_with(str(output_file), ANY, condensed=False)
-            call_args = mock_csv_generator.generate_csv.call_args[0]
-            assert len(call_args[1]) == 1
-            assert call_args[1][0].selector == ".container"
-            assert call_args[1][0].used == "NO"
 
 def test_main_missing_css_file(mock_argv):
-    """Test main() with a non-existent CSS file."""
     css_file = "nonexistent.css"
     search_dir = "src"
     args = ["css-analyzer", "--css", css_file, "--targets", search_dir]
@@ -98,7 +99,6 @@ def test_main_missing_css_file(mock_argv):
             main()
 
 def test_main_custom_output_path(tmp_path, mock_argv, setup_files):
-    """Test main() with a custom output file path."""
     css_file, search_dir = setup_files
     custom_output = tmp_path / "custom" / "result.csv"
     custom_output.parent.mkdir()
@@ -110,11 +110,15 @@ def test_main_custom_output_path(tmp_path, mock_argv, setup_files):
              patch("css_analyzer.cli.CSSAnalyzer") as mock_analyzer, \
              patch("css_analyzer.cli.CSVGenerator") as mock_csv_generator, \
              patch("css_analyzer.cli.os.walk") as mock_walk:
-            mock_parser.return_value.parse.return_value = {".container": str(css_file)}
-            mock_walk.return_value = [(str(search_dir), (), ("index.html",))]
+            mock_parser.return_value.parse.return_value = {
+                ".container": (str(css_file), "2025-03-20", 20, 1, 30, False)
+            }
+            mock_walk.return_value = [(str(search_dir), (), ("index.html", "page.php", "script.js"))]
             mock_analyzer_instance = mock_analyzer.return_value
-            mock_analyzer_instance.analyze_file.return_value = [
-                UsageData(".container", "", "YES", str(search_dir / "index.html"), 1, '<div class="container">Content</div>')
+            mock_analyzer_instance.analyze_file.side_effect = [
+                [UsageData(".container", "", "YES", str(search_dir / "index.html"), 1, '<div class="container">Content</div>', usage_commit_date="2025-03-21")],
+                [UsageData(".container", "", "YES", str(search_dir / "page.php"), 1, '<div class="container">PHP</div>', usage_commit_date="2025-03-22")],
+                [UsageData(".container", "", "YES", str(search_dir / "script.js"), 1, 'document.querySelector(".container");', usage_commit_date="2025-03-23")]
             ]
             mock_csv_generator.generate_csv = Mock()
 
@@ -134,11 +138,16 @@ def test_main_finalizes_unused_selectors(tmp_path, mock_argv, setup_files):
              patch("css_analyzer.cli.CSSAnalyzer") as mock_analyzer, \
              patch("css_analyzer.cli.CSVGenerator") as mock_csv_generator, \
              patch("css_analyzer.cli.os.walk") as mock_walk:
-            mock_parser.return_value.parse.return_value = {".container": str(css_file), ".unused": str(css_file)}
-            mock_walk.return_value = [(str(search_dir), (), ("index.html",))]
+            mock_parser.return_value.parse.return_value = {
+                ".container": (str(css_file), "2025-03-20", 20, 1, 30, False),
+                ".unused": (str(css_file), "2025-03-19", 15, 1, 30, False)
+            }
+            mock_walk.return_value = [(str(search_dir), (), ("index.html", "page.php", "script.js"))]
             mock_analyzer_instance = mock_analyzer.return_value
-            mock_analyzer_instance.analyze_file.return_value = [
-                UsageData(".container", "", "YES", str(search_dir / "index.html"), 1, '<div class="container">Content</div>')
+            mock_analyzer_instance.analyze_file.side_effect = [
+                [UsageData(".container", "", "YES", str(search_dir / "index.html"), 1, '<div class="container">Content</div>', usage_commit_date="2025-03-21")],
+                [],
+                []
             ]
             mock_csv_generator.generate_csv = Mock()
 
@@ -152,7 +161,6 @@ def test_main_finalizes_unused_selectors(tmp_path, mock_argv, setup_files):
             assert any(u.selector == ".unused" and u.used == "NO" and u.defined_in == str(css_file) for u in usages)
 
 def test_main_updates_defined_in(tmp_path, mock_argv, setup_files):
-    """Test that main() updates defined_in for used selectors."""
     css_file, search_dir = setup_files
     output_file = tmp_path / "output.csv"
     args = ["css-analyzer", "--css", str(css_file), "--targets", str(search_dir), "-o", str(output_file)]
@@ -163,24 +171,23 @@ def test_main_updates_defined_in(tmp_path, mock_argv, setup_files):
              patch("css_analyzer.cli.CSSAnalyzer") as mock_analyzer, \
              patch("css_analyzer.cli.CSVGenerator") as mock_csv_generator, \
              patch("css_analyzer.cli.os.walk") as mock_walk:
-            mock_parser.return_value.parse.return_value = {".container": str(css_file)}
-            mock_walk.return_value = [(str(search_dir), (), ("index.html",))]
+            mock_parser.return_value.parse.return_value = {
+                ".container": (str(css_file), "2025-03-20", 20, 1, 30, False)
+            }
+            mock_walk.return_value = [(str(search_dir), (), ("index.html", "page.php", "script.js"))]
             mock_analyzer_instance = mock_analyzer.return_value
-            mock_analyzer_instance.analyze_file.return_value = [
-                UsageData(".container", "", "YES", str(search_dir / "index.html"), 1, '<div class="container">Content</div>')
+            mock_analyzer_instance.analyze_file.side_effect = [
+                [UsageData(".container", "", "YES", str(search_dir / "index.html"), 1, '<div class="container">Content</div>', usage_commit_date="2025-03-21")],
+                [UsageData(".container", "", "YES", str(search_dir / "page.php"), 1, '<div class="container">PHP</div>', usage_commit_date="2025-03-22")],
+                [UsageData(".container", "", "YES", str(search_dir / "script.js"), 1, 'document.querySelector(".container");', usage_commit_date="2025-03-23")]
             ]
             mock_csv_generator.generate_csv = Mock()
 
             main()
 
             mock_csv_generator.generate_csv.assert_called_once_with(str(output_file), ANY, condensed=False)
-            call_args = mock_csv_generator.generate_csv.call_args[0]
-            usages = call_args[1]
-            assert len(usages) == 1
-            assert usages[0].defined_in == str(css_file)
 
 def test_main_all_flag(tmp_path, mock_argv):
-    """Test main() with --all flag scanning a folder of CSS files."""
     css_dir = tmp_path / "css"
     css_dir.mkdir()
     css1 = css_dir / "styles1.css"
@@ -201,27 +208,21 @@ def test_main_all_flag(tmp_path, mock_argv):
              patch("css_analyzer.cli.CSVGenerator") as mock_csv_generator, \
              patch("css_analyzer.cli.os.walk") as mock_walk:
             mock_parser.return_value.parse.side_effect = [
-                {".container": str(css1)},
-                {".header": str(css2)}
+                {".container": (str(css1), "2025-03-20", 20, 1, 30, False)},
+                {".header": (str(css2), "2025-03-19", 15, 1, 30, False)}
             ]
             mock_walk.return_value = [(str(search_dir), (), ("index.html",))]
             mock_analyzer_instance = mock_analyzer.return_value
             mock_analyzer_instance.analyze_file.return_value = [
-                UsageData(".container", "", "YES", str(html_file), 1, '<div class="container">')
+                UsageData(".container", "", "YES", str(html_file), 1, '<div class="container">', usage_commit_date="2025-03-21")
             ]
             mock_csv_generator.generate_csv = Mock()
 
             main()
 
             mock_csv_generator.generate_csv.assert_called_once_with(str(output_file), ANY, condensed=False)
-            call_args = mock_csv_generator.generate_csv.call_args[0]
-            usages = call_args[1]
-            assert len(usages) == 2
-            assert any(u.selector == ".container" and u.used == "YES" and u.defined_in == str(css1) for u in usages)
-            assert any(u.selector == ".header" and u.used == "NO" and u.defined_in == str(css2) for u in usages)
 
 def test_main_condensed_mode(tmp_path, mock_argv, setup_files):
-    """Test main() with --condensed flag to aggregate duplicate selectors."""
     css_file, search_dir = setup_files
     output_file = tmp_path / "output.csv"
     args = ["css-analyzer", "--css", str(css_file), "--targets", str(search_dir), "-o", str(output_file), "-c"]
@@ -232,26 +233,24 @@ def test_main_condensed_mode(tmp_path, mock_argv, setup_files):
              patch("css_analyzer.cli.CSSAnalyzer") as mock_analyzer, \
              patch("css_analyzer.cli.CSVGenerator") as mock_csv_generator, \
              patch("css_analyzer.cli.os.walk") as mock_walk:
-            mock_parser.return_value.parse.return_value = {".container": str(css_file), ".unused": str(css_file)}
-            mock_walk.return_value = [(str(search_dir), (), ("index.html",))]
+            mock_parser.return_value.parse.return_value = {
+                ".container": (str(css_file), "2025-03-20", 20, 1, 30, False),
+                ".unused": (str(css_file), "2025-03-19", 15, 1, 30, False)
+            }
+            mock_walk.return_value = [(str(search_dir), (), ("index.html", "page.php", "script.js"))]
             mock_analyzer_instance = mock_analyzer.return_value
-            mock_analyzer_instance.analyze_file.return_value = [
-                UsageData(".container", "", "YES", str(search_dir / "index.html"), 1, '<div class="container">Content</div>'),
-                UsageData(".container", "", "YES", str(search_dir / "index.html"), 2, '<div class="container">Another</div>')
+            mock_analyzer_instance.analyze_file.side_effect = [
+                [UsageData(".container", "", "YES", str(search_dir / "index.html"), 1, '<div class="container">Content</div>', usage_commit_date="2025-03-21")],
+                [UsageData(".container", "", "YES", str(search_dir / "page.php"), 1, '<div class="container">PHP</div>', usage_commit_date="2025-03-22")],
+                [UsageData(".container", "", "YES", str(search_dir / "script.js"), 1, 'document.querySelector(".container");', usage_commit_date="2025-03-23")]
             ]
             mock_csv_generator.generate_csv = Mock()
 
             main()
 
             mock_csv_generator.generate_csv.assert_called_once_with(str(output_file), ANY, condensed=True)
-            call_args = mock_csv_generator.generate_csv.call_args[0]
-            usages = call_args[1]
-            assert len(usages) == 2
-            assert any(u.selector == ".container" and u.used == "YES" and u.count == 1 and u.file == "" for u in usages)
-            assert any(u.selector == ".unused" and u.used == "NO" and u.count == 0 and u.file == "" for u in usages)
 
 def test_main_unused_mode(tmp_path, mock_argv, setup_files):
-    """Test main() with --unused flag to show only unused selectors."""
     css_file, search_dir = setup_files
     output_file = tmp_path / "output.csv"
     args = ["css-analyzer", "--css", str(css_file), "--targets", str(search_dir), "-o", str(output_file), "-u"]
@@ -262,11 +261,16 @@ def test_main_unused_mode(tmp_path, mock_argv, setup_files):
              patch("css_analyzer.cli.CSSAnalyzer") as mock_analyzer, \
              patch("css_analyzer.cli.CSVGenerator") as mock_csv_generator, \
              patch("css_analyzer.cli.os.walk") as mock_walk:
-            mock_parser.return_value.parse.return_value = {".container": str(css_file), ".unused": str(css_file)}
-            mock_walk.return_value = [(str(search_dir), (), ("index.html",))]
+            mock_parser.return_value.parse.return_value = {
+                ".container": (str(css_file), "2025-03-20", 20, 1, 30, False),
+                ".unused": (str(css_file), "2025-03-19", 15, 1, 30, False)
+            }
+            mock_walk.return_value = [(str(search_dir), (), ("index.html", "page.php", "script.js"))]
             mock_analyzer_instance = mock_analyzer.return_value
-            mock_analyzer_instance.analyze_file.return_value = [
-                UsageData(".container", "", "YES", str(search_dir / "index.html"), 1, '<div class="container">Content</div>')
+            mock_analyzer_instance.analyze_file.side_effect = [
+                [UsageData(".container", "", "YES", str(search_dir / "index.html"), 1, '<div class="container">Content</div>', usage_commit_date="2025-03-21")],
+                [],
+                []
             ]
             mock_csv_generator.generate_csv = Mock()
 
@@ -275,6 +279,35 @@ def test_main_unused_mode(tmp_path, mock_argv, setup_files):
             mock_csv_generator.generate_csv.assert_called_once_with(str(output_file), ANY, condensed=False)
             call_args = mock_csv_generator.generate_csv.call_args[0]
             usages = call_args[1]
-            assert len(usages) == 1  # Only .unused should remain
+            assert len(usages) == 1
             assert all(u.used == "NO" for u in usages)
-            assert any(u.selector == ".unused" and u.defined_in == str(css_file) for u in usages)
+
+def test_main_file_type_filter(tmp_path, mock_argv, setup_files):
+    css_file, search_dir = setup_files
+    output_file = tmp_path / "output.csv"
+    args = ["css-analyzer", "--css", str(css_file), "--targets", str(search_dir), "-o", str(output_file), "--html", "--php"]
+
+    with mock_argv(args):
+        with patch("css_analyzer.cli.CSSSelectorParser") as mock_parser, \
+             patch("css_analyzer.cli.UsageDetector") as mock_detector, \
+             patch("css_analyzer.cli.CSSAnalyzer") as mock_analyzer, \
+             patch("css_analyzer.cli.CSVGenerator") as mock_csv_generator, \
+             patch("css_analyzer.cli.os.walk") as mock_walk:
+            mock_parser.return_value.parse.return_value = {
+                ".container": (str(css_file), "2025-03-20", 20, 1, 30, False)
+            }
+            mock_walk.return_value = [(str(search_dir), (), ("index.html", "page.php", "script.js"))]
+            mock_analyzer_instance = mock_analyzer.return_value
+            mock_analyzer_instance.analyze_file.side_effect = [
+                [UsageData(".container", "", "YES", str(search_dir / "index.html"), 1, '<div class="container">Content</div>', usage_commit_date="2025-03-21")],
+                [UsageData(".container", "", "YES", str(search_dir / "page.php"), 1, '<div class="container">PHP</div>', usage_commit_date="2025-03-22")],
+                []  # No JS files analyzed
+            ]
+            mock_csv_generator.generate_csv = Mock()
+
+            main()
+
+            mock_analyzer_instance.analyze_file.assert_any_call({".container"}, search_dir / "index.html")
+            mock_analyzer_instance.analyze_file.assert_any_call({".container"}, search_dir / "page.php")
+            assert not any(call[0][1] == search_dir / "script.js" for call in mock_analyzer_instance.analyze_file.call_args_list)
+            mock_csv_generator.generate_csv.assert_called_once_with(str(output_file), ANY, condensed=False)

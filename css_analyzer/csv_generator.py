@@ -15,16 +15,29 @@ class CSVGenerator:
         """
         with open(output_file, 'w', newline='', encoding='utf-8') as csvfile:
             if condensed:
-                fieldnames = ['CSS Element', 'Defined In', 'Used?', 'Count']
+                fieldnames = [
+                    'CSS Element', 'Defined In', 'Used?', 'Count', 'Usage Commit Date', 'CSS Commit Date',
+                    'CSS Size', 'Selector Complexity', 'File Age Days', 'In Comments'
+                ]
             else:
-                fieldnames = ['CSS Element', 'Defined In', 'Used?', 'File', 'Line Number', 'Line of Code']
+                fieldnames = [
+                    'CSS Element', 'Defined In', 'Used?', 'File', 'Line Number', 'Line of Code',
+                    'Usage Commit Date', 'CSS Commit Date', 'CSS Size', 'Selector Complexity',
+                    'File Age Days', 'In Comments'
+                ]
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
             for usage in usages:
                 row = {
                     'CSS Element': usage.selector,
                     'Defined In': usage.defined_in,
-                    'Used?': usage.used
+                    'Used?': usage.used,
+                    'Usage Commit Date': usage.usage_commit_date,
+                    'CSS Commit Date': usage.css_commit_date,
+                    'CSS Size': usage.css_size,
+                    'Selector Complexity': usage.selector_complexity,
+                    'File Age Days': usage.file_age_days,
+                    'In Comments': usage.in_comments
                 }
                 if condensed:
                     row['Count'] = usage.count
